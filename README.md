@@ -1,126 +1,155 @@
-# O.R.A.C.L.E.
+# Oracle
 
 **Operational Resource for Analysis, Communication, and Logical Execution**
 
-A JARVIS-style desktop AI assistant written in Python.
+A text-first Python desktop assistant with Gmail job-application triage.
 
-Primary interface: `python oracle.py`  
-Not a website-first product. Voice + terminal first. British female neural speech.
+Oracle chats in a Tkinter window (or the terminal), uses an LLM for general requests, and uses spaCy for simple local intents such as “show my job chart”. It can classify recent job-application email threads into **Offer**, **Declined**, **Responded / In Progress**, and **Awaiting Response**, then open an interactive pie chart.
 
-## What works now
+## Features
 
-- Python desktop assistant loop (`python oracle.py`)
-- British female spoken replies (`en-GB-SoniaNeural`)
-- Wake phrase listening (`Hey Oracle`)
-- Microphone speech-to-text with Whisper
-- Persistent conversation memory across sessions
+- Desktop chat UI (`python oracle.py`) and terminal mode (`--terminal`)
 - Gmail + Google Calendar tools (read, send, create, cancel, move)
-- Unread email digest briefings
-- Open allow-listed Windows apps, URLs, and web search
-- Text fallback mode if the microphone stack fails
+- Conservative job-email classifier (platform receipts are applications, not offers)
+- **21-day silence rule**: no meaningful employer reply after 21 days counts as declined
+- Incremental Gmail snapshots so later refreshes only pull new mail
+- Interactive pie chart: click a slice, preview an email, refresh Gmail
+- Local conversation memory (stored on disk, not in git)
 
-Custom MP3 voice cloning is deferred (unstable on Python 3.14). See `BACKLOG.md`.
+## Requirements
+
+- Python 3.11+ (3.12 recommended)
+- OpenAI API key (or an OpenAI-compatible provider)
+- Optional: a Google Cloud OAuth client with Gmail and Calendar APIs enabled
 
 ## Quick start
 
 ```powershell
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
+python -m spacy download en_core_web_sm
 Copy-Item .env.example .env
 ```
 
-Put your keys in `.env` (never paste them into chat):
+Edit `.env` with your own keys. Never commit that file.
 
 ```text
-OPENAI_API_KEY=...
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-TTS_VOICE=en-GB-SoniaNeural
-WAKE_PHRASE=Hey Oracle
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-4o-mini
+GOOGLE_CLIENT_ID=your_google_oauth_client_id
+GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
+GOOGLE_REDIRECT_URI=http://127.0.0.1:8000/api/google/callback
 ```
 
-### Connect Google (desktop)
-
-In Google Cloud, for your OAuth client, also allow:
-
-```text
-http://localhost
-```
-
-Then:
+Run the assistant:
 
 ```powershell
-python oracle.py --connect-google
+.\.venv\Scripts\python.exe oracle.py
 ```
 
-### Run the assistant
-
-Text-first LLM mode:
+Terminal mode:
 
 ```powershell
-python oracle.py
+.\.venv\Scripts\python.exe oracle.py --terminal
 ```
 
-An **Oracle** window opens with a chat transcript and typed prompt. Oracle uses
-an LLM for general requests and spaCy for simple local intent routing.
+## Connect Google
 
-Terminal mode (no interactive window):
+1. In [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials), create an OAuth **Web** or desktop client.
+2. Add this **Authorized redirect URI** exactly:
+
+   ```text
+   http://127.0.0.1:8000/api/google/callback
+   ```
+
+3. Enable the Gmail API and Google Calendar API.
+4. Put the client ID and secret in `.env`.
+5. Sign in:
 
 ```powershell
-python oracle.py --terminal
+.\.venv\Scripts\python.exe oracle.py --connect-google
+.\.venv\Scripts\python.exe oracle.py --status
 ```
 
-Triage Gmail job applications from the last two months:
+Tokens are saved locally in `.data/google_token.json` and are gitignored.
+
+## Job application triage
+
+Scan (or incrementally refresh) the last two months of Gmail and open the chart:
 
 ```powershell
-python oracle.py --triage-job-emails
+.\.venv\Scripts\python.exe oracle.py --show-job-chart
 ```
 
-This creates/applies the Gmail labels `Oracle/Jobs/Offer`,
-`Oracle/Jobs/Declined`, `Oracle/Jobs/Responded`, and
-`Oracle/Jobs/Awaiting Response`. Applications with **no employer reply after
-21 days (3 weeks)** are counted as **declined**. Indeed receipts are
-applications, not offers. Ads, housing, and roommate mail are excluded.
+Force a full two-month rescan:
 
-After triage, Oracle opens an **interactive pie chart**:
-- Click a slice or legend item to filter the email list
-- Click an email to preview its sender, subject, date, and body
-- Hover to highlight a category
-- Click **Refresh Gmail** to rescan and reconcile labels
-- `python oracle.py --show-job-chart` refreshes Gmail before opening the chart
+```powershell
+.\.venv\Scripts\python.exe oracle.py --show-job-chart --full-rescan
+```
 
-## How to talk to it
+Label threads without changing the usual chart flow:
 
-1. Run `python oracle.py`
-2. Type a request and click **Send**
-3. To classify applications, type: `label my job application emails from the past two months`
+```powershell
+.\.venv\Scripts\python.exe oracle.py --triage-job-emails
+```
+
+Gmail labels applied:
+
+| Category | Gmail label |
+| --- | --- |
+| Offer | `Oracle/Jobs/Offer` |
+| Declined (explicit or 21-day timeout) | `Oracle/Jobs/Declined` |
+| Recruiter reply / next stage | `Oracle/Jobs/Responded` |
+| Applied, still inside 21 days | `Oracle/Jobs/Awaiting Response` |
+
+**How categories are chosen**
+
+- **Awaiting**: application evidence exists, and there is no meaningful employer reply yet.
+- **Responded / in progress**: a real recruiter step (interview, assessment, “next stage”, shortlist, written questions).
+- **Declined**: explicit rejection language, or 21 days with no real reply.
+- **Offer**: explicit offer wording only. Indeed/Lever receipts are **not** offers.
+
+Ads, housing/roommate mail, job alerts, and incomplete-application nags are excluded.
+
+Each successful scan writes a snapshot to `.data/job_triage_latest.json`. Later runs download mail **since that snapshot**, re-label new threads, and re-label threads whose category changed (including 21-day timeouts). That file contains your subjects and senders — it is not committed.
+
+## Privacy
+
+This repo is meant to be public. Keep secrets and mailbox data off GitHub:
+
+| Kept local (gitignored) | Safe to commit |
+| --- | --- |
+| `.env` | `.env.example` (placeholders only) |
+| `.data/` (tokens, chat memory, triage snapshot) | Source under `app/` |
+| `.venv/` | `requirements.txt` |
+| `credentials.json`, `token.json`, `*.pem` | This README |
+
+Do not put API keys, OAuth client secrets, or Gmail exports in issues, commits, or the README.
 
 ## Project layout
 
 ```text
-oracle.py              # main text-first desktop entry
-app/assistant.py       # LLM chat + local intent routing
-app/nlp.py             # spaCy simple-language routing
-app/job_triage.py      # conservative job-email classifier
-app/llm.py             # brain + tools
-app/google_*.py        # Gmail/Calendar
-BACKLOG.md             # later phases
+oracle.py              # CLI + desktop entry
+app/assistant.py       # chat loop and job-chart intents
+app/nlp.py             # spaCy routing
+app/job_triage.py      # classifier + incremental snapshot
+app/job_chart.py       # interactive pie chart
+app/google_auth.py     # OAuth
+app/google_services.py # Gmail / Calendar API
+app/llm.py             # model + tools
+scripts/               # audits and one-off helpers
 static/ + app/main.py  # optional legacy web UI
 ```
 
 ## Optional legacy web UI
 
-The older FastAPI chat UI still exists if you want it:
-
 ```powershell
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-The supported path forward is the Python desktop assistant.
+The supported path is the desktop assistant, not the website.
 
-## Notes
+## License
 
-- Speech recognition uses OpenAI Whisper (`WHISPER_MODEL`)
-- Spoken voice defaults to British female neural TTS
-- Google tokens stay in `.data/google_token.json`
-- Secrets stay in `.env`
+Use and modify for your own setup. Add a `LICENSE` file if you want a specific open-source grant.
