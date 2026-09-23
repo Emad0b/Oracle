@@ -1,0 +1,32 @@
+# Secrets and local runtime data — never commit
+.env
+.env.*
+!.env.example
+.data/
+token.json
+credentials.json
+client_secret*.json
+google_token.json
+google_oauth_state.json
+conversation_memory.json
+job_triage_latest.json
+*.pem
+*.key
+
+# Python / tooling
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local editor and OS noise
+.idea/
+.vscode/
+.cursor/
+Thumbs.db
+Desktop.ini

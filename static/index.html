@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>O.R.A.C.L.E.</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero" aria-labelledby="app-title">
+        <p class="eyebrow">Operational Resource for Analysis, Communication, and Logical Execution</p>
+        <h1 id="app-title">O.R.A.C.L.E.</h1>
+        <p class="summary">
+          Say “Hey Oracle”, then ask about Gmail, Calendar, or anything you need handled.
+        </p>
+
+        <div class="controls">
+          <div class="status-card">
+            <span class="status-label">Google</span>
+            <strong id="google-status">Checking…</strong>
+            <div class="status-actions">
+              <a id="connect-google" class="ghost-button" href="/api/google/connect">Connect Google</a>
+              <button id="disconnect-google" class="ghost-button" type="button" hidden>Disconnect</button>
+            </div>
+          </div>
+
+          <div class="status-card voice-card">
+            <span class="status-label">Voice</span>
+            <strong id="voice-status">Idle</strong>
+            <p id="wake-hint" class="wake-hint">Wake phrase: Hey Oracle</p>
+            <div class="transcript-box" aria-live="polite">
+              <span class="status-label">Live transcript</span>
+              <p id="voice-transcript">Listening is off.</p>
+            </div>
+            <div class="status-actions">
+              <button id="voice-toggle" class="ghost-button" type="button">Enable Listening</button>
+              <button id="mic-push" class="ghost-button" type="button">Push to Talk</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="chat-panel" aria-label="O.R.A.C.L.E. chat">
+        <div id="messages" class="messages" aria-live="polite">
+          <article class="message assistant">
+            <span class="label">O.R.A.C.L.E.</span>
+            <p>
+              Hello. Connect Google, enable listening, then say “Hey Oracle” followed by a
+              command like “What’s on my calendar today?” or “Read my latest emails.”
+            </p>
+          </article>
+        </div>
+
+        <form id="chat-form" class="composer">
+          <label class="sr-only" for="message-input">Message</label>
+          <textarea
+            id="message-input"
+            name="message"
+            rows="3"
+            placeholder="Type a command, or enable listening and say Hey Oracle..."
+            required
+          ></textarea>
+          <button id="send-button" type="submit">Send</button>
+        </form>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
