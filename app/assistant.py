@@ -98,7 +98,26 @@ class OracleAssistant:
         self._set_output(f"You: {cleaned}")
         lowered = cleaned.lower()
 
-        if lowered in {"forget everything", "clear memory", "reset memory"}:
+        if lowered in {"help", "capabilities", "what can you do"}:
+            reply = ("I am Oracle. I can reason and plan using your configured LLM, use Gmail and Calendar tools, "
+                     "open supported apps and websites, and control configured IoT lights and switches. "
+                     "Try 'system status', 'list devices', or 'turn on the study light'. "
+                     "IoT defaults to simulated devices. Voice, vision and autonomous routines are in the backlog.")
+        elif lowered in {"system status", "integration status"}:
+            import os
+            reply = (f"LLM: {self.settings.openai_model}; "
+                     f"key {'configured (connection not tested)' if self.settings.openai_api_key else 'missing'}. "
+                     f"IoT backend: {os.getenv('IOT_BACKEND', 'demo')}. "
+                     "Gmail requires a valid OAuth connection. Memory is stored locally.")
+        elif lowered in {"list devices", "show devices"}:
+            from app.iot import list_devices
+            try:
+                result = list_devices()
+                reply = ("Simulated devices:\n" if result['simulated'] else "Connected devices:\n") + "\n".join(
+                    f"{item['entity_id']}: {item['state']}" for item in result['devices'])
+            except ValueError as exc:
+                reply = str(exc)
+        elif lowered in {"forget everything", "clear memory", "reset memory"}:
             clear_history()
             self.history = []
             reply = "Memory cleared. We're starting fresh."
@@ -164,10 +183,11 @@ class OracleAssistant:
             if status.get("connected")
             else "Google is not connected. Run python oracle.py --connect-google."
         )
-        self._set_status("ACTIVE", "Text-only LLM ready")
+        self._set_status("ACTIVE", "Oracle ready")
         self._set_output(
-            f"{connection} Type a request. For job triage: "
-            '"label my job application emails from the past two months".'
+            "I am Oracle, your assistant for analysis, planning, communication and connected devices. "
+            f"{connection}\nTry 'help', 'system status', or 'list devices'. "
+            "General conversation uses your configured LLM API."
         )
         self.hud.run()
 

@@ -2,7 +2,44 @@
 
 **Operational Resource for Analysis, Communication, and Logical Execution**
 
-A text-first Python desktop assistant with Gmail job-application triage.
+A Python desktop personal assistant inspired by JARVIS: API-backed reasoning,
+planning, communication, productivity tools, and configurable IoT integration.
+
+## Assistant mode
+
+Run `.\.venv\Scripts\python.exe oracle.py`. Use the Capabilities, System status,
+and Devices buttons, or type natural-language requests. General conversation
+requires a working `OPENAI_API_KEY` and sufficient provider quota. Set
+`OPENAI_MODEL` and optionally `OPENAI_BASE_URL` for your compatible provider.
+spaCy routes selected local intents; it is not an LLM or a self-training brain.
+
+Try `help`, `list devices`, `turn on the study light`, or ask Oracle to plan a task.
+The first two commands work without an LLM call. Device commands through natural
+language use the LLM tools. Gmail triage remains an optional skill.
+
+### IoT without hardware
+
+`IOT_BACKEND=demo` is the default. A study light, desk lamp and temperature sensor
+are explicitly simulated; their state resets when Oracle exits. No physical
+device is contacted in this mode.
+
+When hardware is available, configure locally in `.env`:
+
+```text
+IOT_BACKEND=home_assistant
+HA_URL=http://homeassistant.local:8123
+HA_TOKEN=your_local_token
+HA_ALLOWED_ENTITIES=light.study,switch.desk_lamp
+```
+
+The adapter uses the [Home Assistant REST API](https://developers.home-assistant.io/docs/api/rest/).
+Only allowlisted entities are exposed. Control currently supports lights and
+switches, with explicit on/off actions. Never commit tokens or local snapshots.
+Real hardware connectivity has not been validated without a Home Assistant host.
+
+Voice, vision, MQTT, autonomous routines and cloud deployment are backlog work;
+the current interface is typed desktop chat. This is a practical assistant
+foundation, not movie-level general intelligence.
 
 Oracle chats in a Tkinter window (or the terminal), uses an LLM for general requests, and uses spaCy for simple local intents such as “show my job chart”. It can classify recent job-application email threads into **Offer**, **Declined**, **Responded / In Progress**, and **Awaiting Response**, then open an interactive pie chart.
 

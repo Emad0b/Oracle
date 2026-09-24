@@ -3,6 +3,11 @@
 .env.*
 !.env.example
 .data/
+assets/voices/
+*.wav
+*.mp3
+*.mp4
+*.sqlite*
 token.json
 credentials.json
 client_secret*.json

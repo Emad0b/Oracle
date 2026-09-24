@@ -16,6 +16,7 @@ from app.google_services import (
     update_calendar_event,
 )
 from app.system_skills import open_app, open_url, web_search
+from app.iot import list_devices, control_device
 
 
 TOOL_DEFINITIONS: list[dict[str, Any]] = [
@@ -364,6 +365,8 @@ def _tool_update_event(
 
 
 TOOL_HANDLERS: dict[str, Callable[..., Any]] = {
+    "list_devices": list_devices,
+    "control_device": control_device,
     "get_google_connection_status": lambda: google_status(),
     "list_recent_emails": list_recent_emails,
     "unread_email_digest": unread_email_digest,
@@ -377,6 +380,18 @@ TOOL_HANDLERS: dict[str, Callable[..., Any]] = {
     "open_app": open_app,
     "web_search": web_search,
 }
+
+TOOL_DEFINITIONS.extend([
+    {"type": "function", "function": {
+        "name": "list_devices", "description": "List configured IoT devices and states. Demo devices are simulated, never real hardware.",
+        "parameters": {"type": "object", "properties": {}, "additionalProperties": False}}},
+    {"type": "function", "function": {
+        "name": "control_device", "description": "Turn a configured light or switch on/off only when the user requests it. List devices first to resolve its exact entity ID.",
+        "parameters": {"type": "object", "properties": {
+            "entity_id": {"type": "string"},
+            "action": {"type": "string", "enum": ["turn_on", "turn_off"]}},
+            "required": ["entity_id", "action"], "additionalProperties": False}}},
+])
 
 
 def execute_tool(name: str, arguments: dict[str, Any]) -> str:

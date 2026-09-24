@@ -27,7 +27,8 @@ class OracleHUD:
         root = tk.Tk()
         self._root = root
         root.title("Oracle")
-        root.geometry("650x580+40+40")
+        root.geometry("820x700+40+40")
+        root.minsize(650, 520)
         root.configure(bg="#05070d")
 
         tk.Label(root, text="ORACLE", font=("Segoe UI", 28, "bold"), fg="#7ee0ff", bg="#05070d").pack(
@@ -35,7 +36,7 @@ class OracleHUD:
         )
         tk.Label(
             root,
-            text="Text-first LLM assistant",
+            text="ANALYSIS  /  COMMUNICATION  /  LOGICAL EXECUTION",
             font=("Segoe UI", 10),
             fg="#8fb0c9",
             bg="#05070d",
@@ -49,6 +50,13 @@ class OracleHUD:
             fg="#7dffb2",
             bg="#05070d",
         ).pack(pady=(0, 8))
+
+        shortcuts = tk.Frame(root, bg="#05070d")
+        shortcuts.pack(fill="x", padx=18, pady=(0, 10))
+        for title, prompt in (("Capabilities", "help"), ("System status", "system status"),
+                              ("Devices", "list devices")):
+            tk.Button(shortcuts, text=title, command=lambda p=prompt: self._quick_prompt(p),
+                      bg="#163047", fg="#e8f1ff", relief="flat", padx=12, pady=7).pack(side="left", padx=(0, 8))
 
         self._output = tk.Text(
             root,
@@ -101,10 +109,17 @@ class OracleHUD:
         if not text:
             return
         self._entry.delete(0, tk.END)
-        self._append(f"You: {text}\n\n")
+        self._busy = True
         import threading
 
         threading.Thread(target=self.on_send_text, args=(text,), daemon=True).start()
+
+    def _quick_prompt(self, prompt: str) -> None:
+        if self._busy or not self._entry:
+            return
+        self._entry.delete(0, tk.END)
+        self._entry.insert(0, prompt)
+        self._submit()
 
     def _append(self, text: str) -> None:
         if self._output is None:
