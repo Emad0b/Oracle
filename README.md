@@ -37,9 +37,30 @@ Only allowlisted entities are exposed. Control currently supports lights and
 switches, with explicit on/off actions. Never commit tokens or local snapshots.
 Real hardware connectivity has not been validated without a Home Assistant host.
 
-Voice, vision, MQTT, autonomous routines and cloud deployment are backlog work;
-the current interface is typed desktop chat. This is a practical assistant
-foundation, not movie-level general intelligence.
+## Voice, vision, background checks and personalization
+
+- **Record 6 seconds** asks before recording and uploading to the configured
+  transcription API. Review the resulting text in the input box, then Send.
+- **Speak last reply** uses AI-generated speech through the configured API.
+  The default voice is `nova`; a British accent is not guaranteed.
+- **Preview screen** captures the primary screen locally. Only clicking
+  **Analyze this screenshot** uploads that image to your configured vision model.
+  Cancel sends nothing. Images and audio are held in memory, not saved as files.
+- **Monitor devices** enables read-only device checks every five minutes while
+  Oracle is open. Only changes/errors are displayed. **Stop monitor** stops it;
+  it does not resume automatically after restart or execute model-generated tasks.
+- `learn: I prefer short answers` saves a local preference for future LLM replies.
+  `show preferences` reviews it; `forget preferences` removes it. This is explicit
+  personalization, **not training model weights or rewriting Oracle's code**.
+
+Install current dependencies with `.\.venv\Scripts\python.exe -m pip install -r requirements.txt`.
+Speech/vision require API credit and provider support for their endpoints/models.
+`WHISPER_MODEL`, `SPEECH_VOICE`, `VISION_MODEL` and optional `MIC_DEVICE` are configurable.
+Preferences and chat history stay in ignored `.data/`; saved preferences are sent
+as context with LLM requests. Speech sends reply text to the configured provider.
+
+Actual fine-tuning, open-ended autonomous agents, MQTT and cloud deployment remain
+backlog work. Hardware capture and paid API calls need validation on your machine.
 
 Oracle chats in a Tkinter window (or the terminal), uses an LLM for general requests, and uses spaCy for simple local intents such as “show my job chart”. It can classify recent job-application email threads into **Offer**, **Declined**, **Responded / In Progress**, and **Awaiting Response**, then open an interactive pie chart.
 

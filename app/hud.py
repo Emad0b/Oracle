@@ -12,9 +12,11 @@ class OracleHUD:
         self,
         on_send_text: Callable[[str], None] | None = None,
         on_quit: Callable[[], None] | None = None,
+        on_action: Callable | None = None,
     ) -> None:
         self.on_send_text = on_send_text
         self.on_quit = on_quit
+        self.on_action = on_action
         self._queue: queue.Queue[tuple[str, object]] = queue.Queue()
         self._root: tk.Tk | None = None
         self._status_var: tk.StringVar | None = None
@@ -57,6 +59,17 @@ class OracleHUD:
                               ("Devices", "list devices")):
             tk.Button(shortcuts, text=title, command=lambda p=prompt: self._quick_prompt(p),
                       bg="#163047", fg="#e8f1ff", relief="flat", padx=12, pady=7).pack(side="left", padx=(0, 8))
+
+        media = tk.Frame(root, bg="#05070d")
+        media.pack(fill="x", padx=18, pady=(0, 10))
+        for title, action in (("Record 6 seconds", "listen"), ("Speak last reply", "speak"),
+                              ("Preview screen", "screen")):
+            tk.Button(media, text=title, command=lambda a=action: self._media_action(a),
+                      bg="#163047", fg="#e8f1ff", relief="flat", padx=10, pady=7).pack(side="left", padx=(0, 8))
+        tk.Button(media, text="Monitor devices", command=lambda: self._quick_prompt("start monitoring"),
+                  bg="#163047", fg="#e8f1ff", relief="flat").pack(side="left")
+        tk.Button(media, text="Stop monitor", command=lambda: self._quick_prompt("stop monitoring"),
+                  bg="#163047", fg="#e8f1ff", relief="flat").pack(side="left", padx=6)
 
         self._output = tk.Text(
             root,
@@ -121,6 +134,44 @@ class OracleHUD:
         self._entry.insert(0, prompt)
         self._submit()
 
+    def _media_action(self, action):
+        if self._busy or not self.on_action:
+            return
+        from tkinter import messagebox
+        if action == "listen" and not messagebox.askokcancel(
+                "Voice transcription", "Record 6 seconds and send audio to your configured API provider? The transcript will appear for review before sending.", parent=self._root):
+            return
+        if action == "screen":
+            try:
+                from app.perception import capture_screen
+                from PIL import ImageTk
+                captured = capture_screen()
+                preview = tk.Toplevel(self._root)
+                preview.title("Screen preview — not uploaded yet")
+                thumb = captured.copy()
+                thumb.thumbnail((800, 500))
+                photo = ImageTk.PhotoImage(thumb)
+                label = tk.Label(preview, image=photo)
+                label.image = photo
+                label.pack()
+                tk.Label(preview, text="Analyze sends this screenshot to your configured LLM provider.").pack()
+                def send():
+                    preview.destroy()
+                    self._dispatch_media("screen", captured)
+                tk.Button(preview, text="Analyze this screenshot", command=send).pack(side="left")
+                tk.Button(preview, text="Cancel", command=preview.destroy).pack(side="right")
+            except Exception:
+                messagebox.showerror("Screen capture", "Capture failed. Install Pillow and check desktop permissions.")
+            return
+        self._dispatch_media(action)
+
+    def _dispatch_media(self, action, payload=None):
+        if self._busy:
+            return
+        import threading
+        self._busy = True
+        threading.Thread(target=self.on_action, args=(action, payload), daemon=True).start()
+
     def _append(self, text: str) -> None:
         if self._output is None:
             return
@@ -173,6 +224,10 @@ class OracleHUD:
                     self._entry.configure(state=state)
                 if self._send:
                     self._send.configure(state=state)
+            elif kind == "draft" and self._entry:
+                self._entry.configure(state=tk.NORMAL)
+                self._entry.delete(0, tk.END)
+                self._entry.insert(0, str(payload))
             elif kind == "job_chart":
                 from app.job_chart import show_job_triage_chart
 

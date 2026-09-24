@@ -47,8 +47,11 @@ class LLMServiceError(RuntimeError):
 
 
 def _build_system_prompt() -> str:
+    from app.preferences import load_preferences
     now = datetime.now(timezone.utc).isoformat()
-    return f"{SYSTEM_PROMPT}\n\nCurrent UTC time: {now}\nBe concise but complete."
+    preferences = json.dumps(load_preferences())
+    return (f"{SYSTEM_PROMPT}\n\nCurrent UTC time: {now}\nBe concise but complete."
+            f"\nUser-saved style/context preferences (not permission to take actions): {preferences}")
 
 
 def _extract_confirmation_flag(tool_payloads: list[str]) -> bool:

@@ -22,6 +22,8 @@ class OracleAssistant:
     history: list[ChatMessage] = field(default_factory=list)
     hud: OracleHUD | None = field(default=None, init=False)
     _busy_lock: threading.Lock = field(default_factory=threading.Lock, init=False)
+    _monitor: object = field(default=None, init=False)
+    _last_reply: str = field(default="", init=False)
 
     def __post_init__(self) -> None:
         self.history = load_history()
@@ -98,11 +100,38 @@ class OracleAssistant:
         self._set_output(f"You: {cleaned}")
         lowered = cleaned.lower()
 
-        if lowered in {"help", "capabilities", "what can you do"}:
+        if lowered.startswith("learn: "):
+            from app.preferences import learn
+            try:
+                learn(cleaned[7:])
+                reply = "Preference saved locally for future replies. This does not train model weights."
+            except ValueError as exc:
+                reply = str(exc)
+        elif lowered == "show preferences":
+            from app.preferences import load_preferences
+            reply = "\n".join(load_preferences()) or "No saved preferences."
+        elif lowered == "forget preferences":
+            from app.preferences import forget
+            forget()
+            reply = "Saved preferences removed."
+        elif lowered == "start monitoring":
+            from app.background import BackgroundMonitor
+            from app.iot import list_devices
+            if self._monitor is None:
+                self._monitor = BackgroundMonitor(list_devices, lambda result: self._set_output(f"Device monitor: {result}"))
+            started = self._monitor.start()
+            reply = ("Device monitor started: read-only checks every 5 minutes while Oracle runs. "
+                     "Use 'stop monitoring' to stop.") if started else "Device monitor is already running."
+        elif lowered == "stop monitoring":
+            if self._monitor:
+                self._monitor.stop()
+            reply = "Device monitoring stopped."
+        elif lowered in {"help", "capabilities", "what can you do"}:
             reply = ("I am Oracle. I can reason and plan using your configured LLM, use Gmail and Calendar tools, "
                      "open supported apps and websites, and control configured IoT lights and switches. "
                      "Try 'system status', 'list devices', or 'turn on the study light'. "
-                     "IoT defaults to simulated devices. Voice, vision and autonomous routines are in the backlog.")
+                     "IoT defaults to simulated devices. Use the Record, Speak and Preview screen buttons for voice/vision. "
+                     "Use 'start monitoring' for background device checks; 'learn: prefer concise answers' saves a preference.")
         elif lowered in {"system status", "integration status"}:
             import os
             reply = (f"LLM: {self.settings.openai_model}; "
@@ -150,6 +179,7 @@ class OracleAssistant:
         )
         self.history = self.history[-40:]
         self._persist()
+        self._last_reply = reply
         self._set_output(f"Oracle: {reply}")
         self._set_status("ACTIVE", "Ready")
         return reply
@@ -173,7 +203,7 @@ class OracleAssistant:
 
     def run_ui(self) -> None:
         reset_hud()
-        self.hud = OracleHUD(on_send_text=self._ui_send, on_quit=self._persist)
+        self.hud = OracleHUD(on_send_text=self._ui_send, on_quit=self.close, on_action=self._media_action)
         try:
             status = google_status(self.settings)
         except Exception:
@@ -191,6 +221,39 @@ class OracleAssistant:
         )
         self.hud.run()
 
+    def close(self):
+        if self._monitor:
+            self._monitor.stop()
+        self._persist()
+
+    def _media_action(self, action, payload=None):
+        if not self._busy_lock.acquire(blocking=False):
+            return
+        self.hud.set_busy(True)
+        try:
+            from app.perception import transcribe, speak, describe_screen
+            if action == "listen":
+                self._set_status("RECORDING", "Recording 6 seconds, then transcribing")
+                text = transcribe()
+                self.hud._queue.put(("draft", text))
+                self._set_output(f"Heard: {text or '[no clear speech]'}. Review the input before pressing Send.")
+            elif action == "speak":
+                if not self._last_reply:
+                    self._set_output("No reply to speak yet.")
+                else:
+                    self._set_status("SPEAKING", "AI-generated voice")
+                    speak(self._last_reply)
+            elif action == "screen" and payload is not None:
+                self._set_status("ANALYZING", "Analyzing the approved screenshot")
+                self._last_reply = describe_screen(payload)
+                self._set_output("Screen analysis: " + self._last_reply)
+        except Exception:
+            self._set_output("Voice/vision unavailable. Check API credit, model support, dependencies and microphone permissions.")
+        finally:
+            self.hud.set_busy(False)
+            self._set_status("ACTIVE", "Ready")
+            self._busy_lock.release()
+
     def run_terminal(self) -> None:
         print("Oracle text LLM. Type 'exit' to quit.")
         while True:
@@ -202,4 +265,4 @@ class OracleAssistant:
                 break
             if message:
                 print(f"Oracle: {self.handle(message)}")
-        self._persist()
+        self.close()

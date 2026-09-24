@@ -20,11 +20,15 @@
 - Sensor event subscriptions and automation rules
 
 ## Interaction and intelligence
-- Optional push-to-talk, transcription and British female speech
+- [x] User-triggered six-second recording, transcript review, API speech playback
+- British female speech selection and local speech engines
 - Local wake word; no continuous paid transcription for wake detection
-- User-initiated screen/image understanding
+- [x] Screenshot preview and explicit upload for vision analysis
 - Retrieval over user-selected documents
-- Scheduled reminders and proactive briefings
+- [x] Opt-in background device-state monitoring while Oracle runs
+- Scheduled reminders, proactive briefings and durable task scheduling
+- [x] Explicit local preference learning and removal
+- Actual model fine-tuning with curated examples, consent and evaluation gates
 - Tray app and animated desktop interface
 
 ## Deployment and advanced work
@@ -33,4 +37,4 @@
 - Local model inference, evaluated intent learning
 - Robotics only after hardware and action boundaries are specified
 
-Previously prototyped voice/cloning code is not part of the current runtime.
+Old voice-cloning samples are not part of the runtime or public repository.
