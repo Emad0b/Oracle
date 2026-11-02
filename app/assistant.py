@@ -7,10 +7,8 @@ from dataclasses import dataclass, field
 from app.config import Settings, get_settings
 from app.google_auth import google_status
 from app.hud import OracleHUD, reset_hud
-from app.job_triage import triage_job_application_emails
 from app.llm import LLMServiceError, MissingApiKeyError, generate_chat_reply
 from app.memory import clear_history, load_history, save_history
-from app.nlp import is_job_triage_request, is_show_job_chart_request
 from app.schemas import ChatMessage, ChatRequest
 
 
@@ -44,53 +42,6 @@ class OracleAssistant:
         reply, _ = await generate_chat_reply(request, self.settings)
         return reply
 
-    def _show_saved_chart(self) -> str:
-        from app.job_chart import load_triage_result, show_job_triage_chart
-
-        self._set_status("THINKING", "Refreshing job applications from Gmail")
-        try:
-            result = triage_job_application_emails(months=2, apply_labels=True)
-        except Exception:
-            result = load_triage_result()
-        if not result:
-            return (
-                "No saved job-triage chart yet. Ask me to "
-                '"label my job application emails from the past two months" first.'
-            )
-        if self.hud:
-            self.hud.show_job_chart(result)
-        else:
-            show_job_triage_chart(result, parent=None, block=False)
-        return (
-            f"Chart refreshed: {result.get('total_applications', 0)} application records "
-            f"across {result.get('scanned_emails', 0)} emails."
-        )
-
-    def _triage_jobs(self) -> str:
-        self._set_status("THINKING", "Scanning recent job-application threads")
-        result = triage_job_application_emails(months=2, apply_labels=True)
-        if self.hud:
-            self.hud.show_job_chart(result)
-        else:
-            from app.job_chart import show_job_triage_chart
-
-            show_job_triage_chart(result, parent=None, block=False)
-        summary = (
-            f"{result.get('scan_mode', 'full').title()} snapshot refresh: "
-            f"checked {result['scanned_emails']} emails in {result['scanned_threads']} threads "
-            f"({result.get('new_applications', 0)} new, {result.get('updated_applications', 0)} updated) "
-            f"and found {result['total_applications']} job-application records: "
-            f"{len(result['offer'])} offer, {len(result['declined'])} declined "
-            f"({sum(1 for item in result['declined'] if item.get('reason') == 'explicit_rejection')} explicit, "
-            f"{sum(1 for item in result['declined'] if item.get('reason') == 'no_reply_after_21_days')} timed out after "
-            f"{result['no_response_after_days']} days), "
-            f"{len(result['responded'])} responded/in progress, and "
-            f"{len(result['awaiting_response'])} still inside the 3-week window. "
-            "Indeed receipts were treated as applications, not offers or employer replies. "
-            "Opening the interactive pie chart."
-        )
-        return summary
-
     def handle(self, message: str) -> str:
         cleaned = " ".join(str(message or "").split())
         if not cleaned:
@@ -100,7 +51,13 @@ class OracleAssistant:
         self._set_output(f"You: {cleaned}")
         lowered = cleaned.lower()
 
-        if lowered.startswith("learn: "):
+        if lowered in {"mymoney", "my money", "open finance", "open mymoney", "open budget"}:
+            if self.hud:
+                self.hud._queue.put(("finance", None))
+                reply = "Opening MyMoney. Your financial records stay local and are not sent to the LLM."
+            else:
+                reply = "Open the local finance window with: python oracle.py --money"
+        elif lowered.startswith("learn: "):
             from app.preferences import learn
             try:
                 learn(cleaned[7:])
@@ -129,7 +86,7 @@ class OracleAssistant:
         elif lowered in {"help", "capabilities", "what can you do"}:
             reply = ("I am Oracle. I can reason and plan using your configured LLM, use Gmail and Calendar tools, "
                      "open supported apps and websites, and control configured IoT lights and switches. "
-                     "Try 'system status', 'list devices', or 'turn on the study light'. "
+                     "Try 'open mymoney' for local budgeting, 'system status', 'list devices', or 'turn on the study light'. "
                      "IoT defaults to simulated devices. Use the Record, Speak and Preview screen buttons for voice/vision. "
                      "Use 'start monitoring' for background device checks; 'learn: prefer concise answers' saves a preference.")
         elif lowered in {"system status", "integration status"}:
@@ -150,14 +107,6 @@ class OracleAssistant:
             clear_history()
             self.history = []
             reply = "Memory cleared. We're starting fresh."
-        elif is_show_job_chart_request(cleaned):
-            reply = self._show_saved_chart()
-        elif is_job_triage_request(cleaned):
-            try:
-                reply = self._triage_jobs()
-            except Exception as exc:  # noqa: BLE001
-                reply = f"Job-email triage could not complete: {exc}"
-                self._set_status("ERROR", "Job triage failed")
         else:
             try:
                 reply = asyncio.run(self.think(cleaned))
@@ -204,21 +153,21 @@ class OracleAssistant:
     def run_ui(self) -> None:
         reset_hud()
         self.hud = OracleHUD(on_send_text=self._ui_send, on_quit=self.close, on_action=self._media_action)
-        try:
-            status = google_status(self.settings)
-        except Exception:
-            status = {"connected": False}
-        connection = (
-            f"Google connected as {status['email']}."
-            if status.get("connected")
-            else "Google is not connected. Run python oracle.py --connect-google."
+        import os
+        self.hud.set_system_info(
+            llm=f"{self.settings.openai_model} · key configured" if self.settings.openai_api_key else "API key needed",
+            google="Checking connection…",
+            iot="Simulated devices" if os.getenv("IOT_BACKEND", "demo") == "demo" else "Home Assistant configured",
         )
+        def check_google():
+            try:
+                status = google_status(self.settings)
+                message = "Connected" if status.get("connected") else "Not connected. Run oracle.py --connect-google"
+            except Exception:
+                message = "Connection unavailable"
+            self.hud.set_system_info(google=message)
+        threading.Thread(target=check_google, daemon=True, name="oracle-connection-check").start()
         self._set_status("ACTIVE", "Oracle ready")
-        self._set_output(
-            "I am Oracle, your assistant for analysis, planning, communication and connected devices. "
-            f"{connection}\nTry 'help', 'system status', or 'list devices'. "
-            "General conversation uses your configured LLM API."
-        )
         self.hud.run()
 
     def close(self):

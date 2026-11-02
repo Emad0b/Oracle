@@ -8,6 +8,12 @@ assets/voices/
 *.mp3
 *.mp4
 *.sqlite*
+*.db
+*.db-*
+# Unrelated local projects are not part of Oracle releases
+/AIClassificationSystem/
+/MachineWatch/
+/dist/
 token.json
 credentials.json
 client_secret*.json

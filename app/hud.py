@@ -24,96 +24,31 @@ class OracleHUD:
         self._entry: tk.Entry | None = None
         self._send: tk.Button | None = None
         self._busy = False
+        self._buttons = []
+        self._system_info = {}
+
+    def build(self):
+        from app.ui_layout import build
+        return build(self)
+
+    def _open_finance(self):
+        from app.finance_ui import open_finance
+        from tkinter import messagebox
+        try:
+            existing = getattr(self, '_finance', None)
+            if existing and existing.window.winfo_exists():
+                existing.refresh()
+                existing.window.lift()
+            else:
+                self._finance = open_finance(self._root)
+        except Exception:
+            messagebox.showerror('MyMoney', 'Unable to open local finance records. Check that the .data folder is writable.', parent=self._root)
 
     def run(self) -> None:
-        root = tk.Tk()
-        self._root = root
-        root.title("Oracle")
-        root.geometry("820x700+40+40")
-        root.minsize(650, 520)
-        root.configure(bg="#05070d")
-
-        tk.Label(root, text="ORACLE", font=("Segoe UI", 28, "bold"), fg="#7ee0ff", bg="#05070d").pack(
-            pady=(18, 0)
-        )
-        tk.Label(
-            root,
-            text="ANALYSIS  /  COMMUNICATION  /  LOGICAL EXECUTION",
-            font=("Segoe UI", 10),
-            fg="#8fb0c9",
-            bg="#05070d",
-        ).pack(pady=(0, 10))
-
-        self._status_var = tk.StringVar(value="ACTIVE — ready")
-        tk.Label(
-            root,
-            textvariable=self._status_var,
-            font=("Segoe UI", 10, "bold"),
-            fg="#7dffb2",
-            bg="#05070d",
-        ).pack(pady=(0, 8))
-
-        shortcuts = tk.Frame(root, bg="#05070d")
-        shortcuts.pack(fill="x", padx=18, pady=(0, 10))
-        for title, prompt in (("Capabilities", "help"), ("System status", "system status"),
-                              ("Devices", "list devices")):
-            tk.Button(shortcuts, text=title, command=lambda p=prompt: self._quick_prompt(p),
-                      bg="#163047", fg="#e8f1ff", relief="flat", padx=12, pady=7).pack(side="left", padx=(0, 8))
-
-        media = tk.Frame(root, bg="#05070d")
-        media.pack(fill="x", padx=18, pady=(0, 10))
-        for title, action in (("Record 6 seconds", "listen"), ("Speak last reply", "speak"),
-                              ("Preview screen", "screen")):
-            tk.Button(media, text=title, command=lambda a=action: self._media_action(a),
-                      bg="#163047", fg="#e8f1ff", relief="flat", padx=10, pady=7).pack(side="left", padx=(0, 8))
-        tk.Button(media, text="Monitor devices", command=lambda: self._quick_prompt("start monitoring"),
-                  bg="#163047", fg="#e8f1ff", relief="flat").pack(side="left")
-        tk.Button(media, text="Stop monitor", command=lambda: self._quick_prompt("stop monitoring"),
-                  bg="#163047", fg="#e8f1ff", relief="flat").pack(side="left", padx=6)
-
-        self._output = tk.Text(
-            root,
-            height=22,
-            wrap="word",
-            bg="#0b1220",
-            fg="#e8f1ff",
-            insertbackground="#73d8ff",
-            relief="flat",
-            padx=14,
-            pady=12,
-            state="disabled",
-            font=("Segoe UI", 10),
-        )
-        self._output.pack(fill="both", expand=True, padx=18, pady=(0, 10))
-
-        entry_row = tk.Frame(root, bg="#05070d")
-        entry_row.pack(fill="x", padx=18, pady=(0, 18))
-        self._entry = tk.Entry(
-            entry_row,
-            font=("Segoe UI", 11),
-            bg="#0b1220",
-            fg="#eef4ff",
-            insertbackground="#73d8ff",
-            relief="flat",
-        )
-        self._entry.pack(side="left", fill="x", expand=True, ipady=9, padx=(0, 8))
-        self._entry.bind("<Return>", lambda _event: self._submit())
-        self._send = tk.Button(
-            entry_row,
-            text="Send",
-            command=self._submit,
-            bg="#35b9f0",
-            fg="#04111a",
-            relief="flat",
-            padx=16,
-            pady=8,
-            font=("Segoe UI", 10, "bold"),
-        )
-        self._send.pack(side="right")
-
-        root.protocol("WM_DELETE_WINDOW", self._close)
+        root = self.build()
         self._drain()
-        root.mainloop()
+        if self._root:
+            root.mainloop()
 
     def _submit(self) -> None:
         if self._busy or not self.on_send_text or not self._entry:
@@ -122,10 +57,62 @@ class OracleHUD:
         if not text:
             return
         self._entry.delete(0, tk.END)
-        self._busy = True
+        self._set_busy_widgets(True)
+        self._status_var.set("Working on your request…")
         import threading
 
-        threading.Thread(target=self.on_send_text, args=(text,), daemon=True).start()
+        threading.Thread(target=self._invoke, args=(self.on_send_text, text), daemon=True).start()
+
+    def _invoke(self, callback, *args):
+        try:
+            callback(*args)
+        except Exception:
+            self.set_transcript("Oracle: That action could not finish. Please try again.")
+        finally:
+            self.set_busy(False)
+
+    def _set_busy_widgets(self, busy):
+        self._busy = busy
+        for widget in self._buttons:
+            widget.configure(state=tk.DISABLED if busy else tk.NORMAL)
+        self._entry.configure(state=tk.DISABLED if busy else tk.NORMAL)
+        self._send.configure(text="Working…" if busy else "Send  ↑")
+        if not busy:
+            self._entry.focus_set()
+
+    def _draft(self, text):
+        if not self._busy:
+            self._entry.delete(0, tk.END)
+            self._entry.insert(0, text)
+            self._entry.focus_set()
+
+    def _clear_chat(self):
+        from tkinter import messagebox
+        if not self._busy and messagebox.askyesno("Clear conversation", "Delete your saved conversation history? Your preferences will remain.", parent=self._root):
+            self._output.configure(state="normal")
+            self._output.delete("1.0", tk.END)
+            self._output.configure(state="disabled")
+            self._quick_prompt("clear memory")
+
+    def set_system_info(self, **info):
+        self._queue.put(("system", info))
+
+    def _connections(self):
+        from app.ui_layout import BG, MUTED, label
+        window = tk.Toplevel(self._root)
+        window.title("Connections & privacy")
+        window.configure(bg=BG)
+        window.geometry("560x490")
+        window.transient(self._root)
+        label(window, "Your connections", 20, bold=True).pack(anchor="w", padx=26, pady=(24, 14))
+        info = self._system_info
+        lines = ["LLM: " + info.get("llm", "Not checked"), "Google: " + info.get("google", "Not checked"),
+                 "IoT: " + info.get("iot", "Not checked"), "",
+                 "Microphone audio and approved screenshots are sent to your configured API provider.",
+                 "Screenshots are previewed before upload. Recordings become editable drafts.",
+                 "Monitoring starts only when enabled and stops when Oracle closes.",
+                 "Connection configuration does not guarantee API quota or device availability."]
+        label(window, "\n\n".join(lines), 10, MUTED, justify="left", wraplength=500).pack(anchor="w", padx=26)
 
     def _quick_prompt(self, prompt: str) -> None:
         if self._busy or not self._entry:
@@ -148,13 +135,16 @@ class OracleHUD:
                 captured = capture_screen()
                 preview = tk.Toplevel(self._root)
                 preview.title("Screen preview — not uploaded yet")
+                from app.ui_layout import BG, MUTED, label as ui_label
+                preview.configure(bg=BG)
+                preview.transient(self._root)
                 thumb = captured.copy()
                 thumb.thumbnail((800, 500))
                 photo = ImageTk.PhotoImage(thumb)
-                label = tk.Label(preview, image=photo)
+                label = tk.Label(preview, image=photo, bg=BG)
                 label.image = photo
                 label.pack()
-                tk.Label(preview, text="Analyze sends this screenshot to your configured LLM provider.").pack()
+                ui_label(preview, "Analyze sends this screenshot to your configured LLM provider.", color=MUTED).pack(pady=12)
                 def send():
                     preview.destroy()
                     self._dispatch_media("screen", captured)
@@ -169,28 +159,31 @@ class OracleHUD:
         if self._busy:
             return
         import threading
-        self._busy = True
-        threading.Thread(target=self.on_action, args=(action, payload), daemon=True).start()
+        self._set_busy_widgets(True)
+        threading.Thread(target=self._invoke, args=(self.on_action, action, payload), daemon=True).start()
 
     def _append(self, text: str) -> None:
         if self._output is None:
             return
+        self._welcome.grid_remove()
+        self._chat.grid(row=0, column=0, sticky="nsew")
+        text = text.strip()
+        is_user = text.startswith("You:")
+        content = text.split(":", 1)[1].strip() if text.startswith(("You:", "Oracle:")) else text
         self._output.configure(state="normal")
-        self._output.insert(tk.END, text)
+        self._output.insert(tk.END, "YOU\n" if is_user else "ORACLE\n", "user" if is_user else "oracle")
+        self._output.insert(tk.END, content + "\n\n")
         self._output.see(tk.END)
         self._output.configure(state="disabled")
 
     def set_status(self, status: str, detail: str = "") -> None:
-        self._queue.put(("status", f"{status} — {detail or status.title()}"))
+        self._queue.put(("status", detail or status.title()))
 
     def set_transcript(self, text: str) -> None:
         self._queue.put(("output", f"{text}\n\n"))
 
     def set_busy(self, busy: bool) -> None:
         self._queue.put(("busy", busy))
-
-    def show_job_chart(self, result: dict) -> None:
-        self._queue.put(("job_chart", result))
 
     def stop(self) -> None:
         self._queue.put(("stop", None))
@@ -218,20 +211,16 @@ class OracleHUD:
             elif kind == "output":
                 self._append(str(payload))
             elif kind == "busy":
-                self._busy = bool(payload)
-                state = tk.DISABLED if self._busy else tk.NORMAL
-                if self._entry:
-                    self._entry.configure(state=state)
-                if self._send:
-                    self._send.configure(state=state)
+                self._set_busy_widgets(bool(payload))
+            elif kind == "finance":
+                self._open_finance()
+            elif kind == "system":
+                self._system_info.update(payload)
+                self._connection_var.set("LLM · " + self._system_info.get("llm", "Not checked") + "\nIoT · " + self._system_info.get("iot", "Not checked"))
             elif kind == "draft" and self._entry:
                 self._entry.configure(state=tk.NORMAL)
                 self._entry.delete(0, tk.END)
                 self._entry.insert(0, str(payload))
-            elif kind == "job_chart":
-                from app.job_chart import show_job_triage_chart
-
-                show_job_triage_chart(payload, parent=self._root)
         self._root.after(50, self._drain)
 
 

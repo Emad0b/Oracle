@@ -1,17 +1,19 @@
 # Oracle roadmap
 
 ## Implemented foundation
+- Local MyMoney desktop budgeting, recurring bills/income, savings, forecasts and private backup
 - API-backed LLM conversation and tool calling
 - Desktop chat with capability, status and device shortcuts
 - Local conversation history
-- Gmail, Calendar, app-launch and job-triage skills
+- Gmail, Calendar and app-launch skills
 - Simulated IoT devices for development without hardware
 - Opt-in Home Assistant REST adapter for allowlisted lights/switches
 
 ## Next: reliability
+- MyMoney: bank-holiday paydays, multiple accounts/currencies, transaction matching,
+  OS notifications, spending-rate forecasts, encrypted storage and in-app restore
 - Server-enforced confirmation tokens for existing email/calendar mutations
 - Provider error messages, streaming and cancellation
-- Regression suite for job classification and snapshot consistency
 - Genuine data-analysis tools with bounded file access
 
 ## Hardware integration (requires devices)
