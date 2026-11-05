@@ -1,71 +1,35 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>O.R.A.C.L.E.</title>
-    <link rel="stylesheet" href="/static/styles.css" />
-  </head>
-  <body>
-    <main class="shell">
-      <section class="hero" aria-labelledby="app-title">
-        <p class="eyebrow">Operational Resource for Analysis, Communication, and Logical Execution</p>
-        <h1 id="app-title">O.R.A.C.L.E.</h1>
-        <p class="summary">
-          Say “Hey Oracle”, then ask about Gmail, Calendar, or anything you need handled.
-        </p>
-
-        <div class="controls">
-          <div class="status-card">
-            <span class="status-label">Google</span>
-            <strong id="google-status">Checking…</strong>
-            <div class="status-actions">
-              <a id="connect-google" class="ghost-button" href="/api/google/connect">Connect Google</a>
-              <button id="disconnect-google" class="ghost-button" type="button" hidden>Disconnect</button>
-            </div>
-          </div>
-
-          <div class="status-card voice-card">
-            <span class="status-label">Voice</span>
-            <strong id="voice-status">Idle</strong>
-            <p id="wake-hint" class="wake-hint">Wake phrase: Hey Oracle</p>
-            <div class="transcript-box" aria-live="polite">
-              <span class="status-label">Live transcript</span>
-              <p id="voice-transcript">Listening is off.</p>
-            </div>
-            <div class="status-actions">
-              <button id="voice-toggle" class="ghost-button" type="button">Enable Listening</button>
-              <button id="mic-push" class="ghost-button" type="button">Push to Talk</button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="chat-panel" aria-label="O.R.A.C.L.E. chat">
-        <div id="messages" class="messages" aria-live="polite">
-          <article class="message assistant">
-            <span class="label">O.R.A.C.L.E.</span>
-            <p>
-              Hello. Connect Google, enable listening, then say “Hey Oracle” followed by a
-              command like “What’s on my calendar today?” or “Read my latest emails.”
-            </p>
-          </article>
-        </div>
-
-        <form id="chat-form" class="composer">
-          <label class="sr-only" for="message-input">Message</label>
-          <textarea
-            id="message-input"
-            name="message"
-            rows="3"
-            placeholder="Type a command, or enable listening and say Hey Oracle..."
-            required
-          ></textarea>
-          <button id="send-button" type="submit">Send</button>
-        </form>
-      </section>
-    </main>
-
-    <script src="/static/app.js"></script>
-  </body>
-</html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Oracle · Your personal workspace</title><link rel="stylesheet" href="/static/styles.css"><script defer src="/static/app.js"></script></head>
+<body>
+<aside class="sidebar">
+  <a class="brand" href="#home"><span class="brand-icon">◉</span> oracle<span class="brand-dot">.</span></a>
+  <p class="sidebar-label">YOUR WORKSPACE</p>
+  <nav aria-label="Main navigation">
+    <a href="#home" data-nav="home"><span>▦</span> Overview</a>
+    <a href="#chat" data-nav="chat"><span>✧</span> Ask Oracle</a>
+    <a href="#money" data-nav="money"><span>◷</span> MyMoney</a>
+    <a href="#devices" data-nav="devices"><span>⌘</span> Devices</a>
+    <a href="#connections" data-nav="connections"><span>⊞</span> Connections <i id="connection-count" hidden></i></a>
+  </nav>
+  <div class="sidebar-bottom"><div class="local-dot"></div><strong>On your computer</strong><p>Personal by design.<br>Your workspace, your control.</p><span class="version">ORACLE / LOCAL EDITION</span></div>
+</aside>
+<main>
+  <header class="topbar"><span id="breadcrumb">Workspace / Overview</span><div><span class="local-pill">● Local workspace</span><button class="icon-button" id="refresh-all" aria-label="Refresh connection status">↻</button></div></header>
+  <div id="global-alert" class="alert" role="status" hidden></div>
+  <section id="page-home" class="page">
+    <div class="page-heading"><div><p class="eyebrow" id="today">YOUR PERSONAL COMMAND CENTRE</p><h1>A little more clarity.<br>A lot more possibility.</h1><p class="subtitle">Your thinking partner. Your finances. Your everyday, connected.</p></div><span class="heading-mark" aria-hidden="true">✳</span></div>
+    <div class="hero"><div class="hero-copy"><span class="tag">MEET YOUR EVERYDAY CO-PILOT</span><h2>What’s on your mind?</h2><p>Make a plan, untangle an idea, or get a head start on your day.</p><form id="hero-form"><label class="sr-only" for="hero-input">Ask Oracle</label><input id="hero-input" placeholder="Ask Oracle anything…" required maxlength="8000"><button aria-label="Send to Oracle">↗</button></form><span class="fine-print">Chat uses your configured AI provider. You stay in control.</span></div><div class="orb-art" aria-hidden="true"><div class="orbit one"></div><div class="orbit two"></div><div class="orb"></div><span class="orbit-star">✦</span></div></div>
+    <div class="section-heading"><h2>Your essentials</h2><a href="#connections">Manage connections ↗</a></div>
+    <div class="essentials"><a class="essential money-tile" href="#money"><span class="tile-icon">◷</span><span class="tiny">MONEY, WITH INTENTION</span><h3>Make room for what matters.</h3><p>Know what you can spend. Protect what you’re saving.</p><span class="tile-link">Open MyMoney ↗</span></a><a class="essential" href="#devices"><span class="tile-icon">⌘</span><span class="tiny">YOUR CONNECTED SPACE</span><h3>A calmer kind of control.</h3><p>Check your devices and manage your space in one place.</p><span class="tile-link">View devices ↗</span></a><a class="essential" href="#connections"><span class="tile-icon">⊞</span><span class="tiny">EVERYTHING IN SYNC</span><h3>Keep the conversation going.</h3><p>Connect Google and your AI provider. Fix issues right here.</p><span class="tile-link">Check connections ↗</span></a></div>
+    <div class="section-heading"><h2>Start with a small step</h2><span class="muted">A few things you can ask</span></div><div class="suggestions"><button data-prompt="Help me plan my day. Ask about my priorities first.">Plan a more focused day <span>↗</span></button><button data-prompt="Summarize my recent unread emails.">Catch up on my inbox <span>↗</span></button><button data-prompt="What is on my calendar this week?">Look at the week ahead <span>↗</span></button></div>
+  </section>
+  <section id="page-chat" class="page" hidden><div class="page-heading compact"><div><p class="eyebrow">A SPACE TO THINK</p><h1>Ask Oracle.</h1><p class="subtitle">Bring the question. We’ll work through it.</p></div><button id="clear-chat" class="secondary">Clear conversation</button></div><div id="chat-log" class="chat-log" aria-live="polite"><div class="chat-empty">✧<h2>Where shall we begin?</h2><p>Ask about your day, explore an idea, or use your connected tools.</p></div></div><form id="chat-form" class="chat-composer"><label class="sr-only" for="chat-input">Message Oracle</label><textarea id="chat-input" rows="2" maxlength="8000" placeholder="Message Oracle…" required></textarea><div><span id="chat-state" class="muted">Your messages are sent to your AI provider.</span><button type="button" id="dictate" class="secondary">Dictate</button><button id="send-chat" class="primary">Send ↗</button></div></form></section>
+  <section id="page-money" class="page" hidden><div class="page-heading compact"><div><p class="eyebrow">MONEY, WITH INTENTION</p><h1>MyMoney.</h1><p class="subtitle">A clearer picture of today. A little confidence for tomorrow.</p></div><button data-money-form="reconcile" class="primary">Set bank balance</button></div><div id="money-notices" class="notice-list" role="status"></div><div id="money-stats" class="stats"></div><div class="section-heading"><h2>Give every pound a purpose</h2><button data-money-form="settings" class="secondary">Payday & limits</button></div><div class="panel"><div id="budget-bar" class="budget-bar"></div><div id="budget-legend" class="legend"></div></div><div class="tabs" role="group" aria-label="Finance views"><button data-money-tab="transactions" class="active">Transactions</button><button data-money-tab="pending">Upcoming</button><button data-money-tab="schedules">Bills & income</button><button data-money-tab="pots">Savings pots</button><button data-money-tab="forecast">Forecast</button><button data-money-tab="movements">Savings history</button></div><div class="section-heading"><h2 id="money-table-title">Transactions</h2><button id="money-add" class="primary">Add transaction</button></div><div id="forecast-chart" class="panel" hidden></div><div id="money-table" class="table-wrap"></div><p class="fine-print">GBP · Manual records · Stored only on this computer. Forecasts depend on complete records and exclude future discretionary spending.</p></section>
+  <section id="page-devices" class="page" hidden><div class="page-heading compact"><div><p class="eyebrow">YOUR CONNECTED SPACE</p><h1>Make yourself at home.</h1><p class="subtitle" id="device-mode">Checking devices…</p></div><button id="refresh-devices" class="secondary">Refresh devices</button></div><div id="device-list" class="essentials"></div></section>
+  <section id="page-connections" class="page" hidden><div class="page-heading compact"><div><p class="eyebrow">YOUR WORKSPACE, CONNECTED</p><h1>Everything in sync.</h1><p class="subtitle">See what’s working, what needs attention, and how to fix it.</p></div><button id="check-connections" class="secondary">Check again</button></div><div id="connection-cards" class="connection-grid"></div><div class="privacy-note"><strong>Private settings. Clear boundaries.</strong><p>Credentials are saved in your local .env file and are never returned to this page. Google sign-in opens Google’s own authorization screen. Testing the AI connection sends a short request and may use a small amount of API credit.</p></div></section>
+  <footer>ORACLE <span>Thoughtfully connected. Always yours.</span></footer>
+</main>
+<dialog id="form-dialog"><form id="modal-form"><div class="dialog-heading"><h2 id="form-title"></h2><button type="button" id="close-dialog" class="icon-button" aria-label="Close dialog">×</button></div><p id="form-help" class="muted"></p><div id="form-fields"></div><p id="form-error" class="form-error" role="alert"></p><div class="dialog-actions"><button type="button" id="cancel-dialog" class="secondary">Cancel</button><button id="save-form" class="primary">Save changes</button></div></form></dialog>
+<div id="toast" role="status" hidden></div>
+</body></html>

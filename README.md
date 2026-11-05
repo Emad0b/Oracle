@@ -2,12 +2,39 @@
 
 **Operational Resource for Analysis, Communication, and Logical Execution**
 
-A Python desktop personal assistant inspired by JARVIS: API-backed reasoning,
+A Python personal assistant with a local web dashboard: API-backed reasoning,
 planning, communication, productivity tools, and configurable IoT integration.
 
-## MyMoney — private desktop budgeting
+## Start Oracle
 
-Open **MyMoney** in Oracle's sidebar, type `open mymoney`, or run:
+```powershell
+.\.venv\Scripts\python.exe oracle.py
+```
+
+Oracle starts at `http://127.0.0.1:8000` and opens your default browser once the
+server is ready. Keep the terminal running; press Ctrl+C to stop the server.
+Use `--no-browser` to start without opening a tab. If port 8000 is busy, stop the
+existing server before restarting. The server binds only to your own computer.
+
+The dashboard includes Overview, Ask Oracle, MyMoney, Devices and Connections.
+Connections shows missing credentials, revoked Google sessions, Google API access
+failures, provider authentication/quota errors and unreachable Home Assistant.
+Use **Configure** to save credentials locally, **Reconnect Google** to sign in,
+and **Test API** to send a short model request (which may use API credit).
+The API is marked untested until a test or chat request succeeds; storing a key
+does not prove that billing or model access works. Connections refreshes each
+minute while the page is visible. Google and IoT checks do not invoke the LLM.
+
+Credentials are write-only from the dashboard and saved in ignored `.env`.
+Google OAuth must use `http://127.0.0.1:8000/api/google/callback` (or the matching
+localhost URL) registered in Google Cloud. Enable both Gmail and Calendar APIs.
+OAuth failures return to the dashboard; callback codes are not logged.
+Foreign origins and unsafe requests without the local-dashboard header are
+rejected. This is a local single-user app, not an authenticated hosted service.
+
+## MyMoney — private local budgeting
+
+Open **MyMoney** in Oracle's sidebar, or run:
 
 ```powershell
 .\.venv\Scripts\python.exe oracle.py --money
@@ -15,19 +42,25 @@ Open **MyMoney** in Oracle's sidebar, type `open mymoney`, or run:
 
 Manage actual transactions, recurring bills and expected income, savings pots,
 daily/weekly allowances, shortfall warnings and a 90-day cashflow forecast.
-This is a native desktop feature, not a website. It works offline without an API
+This workspace is served locally. It works without an API
 key and keeps financial records in ignored `.data/finance.sqlite3`.
 No financial database is included in GitHub or the source-only E: release.
 See [MyMoney setup, calculations and privacy](docs/MYMONEY.md).
 
 ## Assistant mode
 
-Run `.\.venv\Scripts\python.exe oracle.py`. Use the workspace sidebar,
+Run `.\.venv\Scripts\python.exe oracle.py`. Use the web workspace sidebar,
 starter cards, or type natural-language requests. General conversation
 requires a working `OPENAI_API_KEY` and sufficient provider quota. Set
 `OPENAI_MODEL` and optionally `OPENAI_BASE_URL` for your compatible provider.
 
-### Desktop workspace
+### Legacy desktop workspace
+
+Use `python oracle.py --desktop` for the previous Tkinter interface and its
+screen-preview, API speech and device-monitor controls. The default web interface
+offers browser dictation when supported; it may use the browser's speech service.
+Dictation is a draft until sent. Web chat history is held in the tab's memory and
+is cleared when the page reloads; it does not load desktop conversation history.
 
 The native desktop GUI includes a dark navy theme, a focused conversation area,
 starter prompts, and a sidebar for capabilities, devices, preferences and
@@ -88,7 +121,7 @@ backlog work. Hardware capture and paid API calls need validation on your machin
 
 ## Features
 
-- Desktop chat UI and terminal mode
+- Local web dashboard, legacy desktop UI and terminal mode
 - Gmail reading and sending, plus Google Calendar tools
 - API-backed conversation, voice and screen analysis
 - Simulated or configured IoT devices
@@ -170,23 +203,25 @@ Do not put API keys, OAuth client secrets, or Gmail exports in issues, commits, 
 ## Project layout
 
 ```text
-oracle.py              # CLI + desktop entry
+oracle.py              # starts local server and opens browser
+app/web_launcher.py    # loopback server lifecycle
+app/web_dashboard.py   # connections, devices and finance API
 app/assistant.py       # chat loop and assistant actions
 app/hud.py             # desktop interaction
 app/ui_layout.py       # desktop layout
 app/google_auth.py     # OAuth
 app/google_services.py # Gmail / Calendar API
 app/llm.py             # model + tools
-static/ + app/main.py  # optional legacy web UI
+static/ + app/main.py  # default web dashboard
 ```
 
-## Optional legacy web UI
+## Run the web server directly
 
 ```powershell
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-The supported path is the desktop assistant, not the website.
+The default entry point `python oracle.py` also opens the browser automatically.
 
 ## License
 

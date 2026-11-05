@@ -106,7 +106,7 @@ def exchange_code(
     settings = settings or get_settings()
     oauth_state = _load_oauth_state()
 
-    if state and oauth_state.get("state") and state != oauth_state["state"]:
+    if not state or not oauth_state.get("state") or state != oauth_state["state"]:
         raise GoogleAuthError("OAuth state mismatch. Click Connect Google again.")
 
     flow = Flow.from_client_config(

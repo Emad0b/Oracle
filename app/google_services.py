@@ -10,6 +10,10 @@ from googleapiclient.discovery import build
 from app.google_auth import GoogleAuthError, get_credentials
 
 
+class GoogleServiceError(RuntimeError):
+    """A Gmail or Calendar service request could not complete."""
+
+
 def _require_credentials():
     credentials = get_credentials()
     if not credentials:

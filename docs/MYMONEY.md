@@ -1,8 +1,9 @@
 # MyMoney inside Oracle
 
-MyMoney is a native Tkinter workspace in Oracle, not a website. It works without
-an API key, Google connection or internet access. Launch `python oracle.py --money`,
-choose **MyMoney** in the sidebar, or type **open mymoney** in desktop chat.
+MyMoney is a local web workspace in Oracle. It works without an API key, Google
+connection or internet access. Launch `python oracle.py --money` or choose
+**MyMoney** in the web sidebar. It uses the same `.data/finance.sqlite3` database
+as the previous desktop version. The legacy desktop remains under `--desktop`.
 
 ## First use
 
@@ -70,7 +71,7 @@ source releases. As with any window, explicitly sharing a screenshot or pasting
 its contents into chat can disclose data. The database is not encrypted: protect
 your Windows account and disk. Never store bank passwords or card details.
 
-**Private database backup** creates a consistent SQLite copy. That copy contains
+The legacy desktop's **Private database backup** creates a consistent SQLite copy. That copy contains
 personal records and is separate from the sanitized source-only E: backup.
 To restore: close Oracle, retain a copy of the current database, and copy the
 private backup to `.data/finance.sqlite3`. Reopen MyMoney and verify its balance.
@@ -88,5 +89,5 @@ A desktop smoke test checks all five tabs using a temporary database.
 Backlog: bank synchronization through an authorized Open Banking provider,
 multi-account/currency support, bank-holiday payday rules, OS notifications,
 spending-rate forecasts, transaction-to-bill matching, encrypted storage,
-versioned schema migrations and in-app backup restore. No hosted service or web
-API is introduced for MyMoney.
+versioned schema migrations and in-app backup restore. The web dashboard uses
+local-only `/api/money` read/action endpoints; no hosted service is introduced.
