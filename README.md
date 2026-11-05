@@ -74,6 +74,10 @@ Try `help`, `list devices`, `turn on the study light`, or ask Oracle to plan a t
 The first two commands work without an LLM call. Device commands through natural
 language use the LLM tools.
 
+### IoT monitoring cards
+
+Create and rename monitoring cards in Devices, capture timestamped readings, and see saved cards in Overview. To ask about device readings, explicitly share them for a chat message. See [device setup](docs/DEVICES.md) for Arduino, Raspberry Pi and Home Assistant.
+
 ### IoT without hardware
 
 `IOT_BACKEND=demo` is the default. A study light, desk lamp and temperature sensor

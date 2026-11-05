@@ -15,6 +15,7 @@ from app.config import get_settings
 from app.finance import FinanceStore, pence
 from app.google_auth import google_status, get_credentials
 from app.iot import list_devices, control_device
+from app.device_workspace import workspace, save_panel, remove_panel
 
 router = APIRouter(prefix='/api')
 ENV_PATH = Path(__file__).resolve().parent.parent / '.env'
@@ -149,6 +150,42 @@ def devices():
 class DeviceAction(BaseModel):
     entity_id: str
     action: str
+
+
+class MonitoringCard(BaseModel):
+    entity_id: str = Field(min_length=1, max_length=255)
+    title: str = Field(min_length=1, max_length=80)
+
+
+@router.get('/devices/workspace')
+def device_workspace():
+    try:
+        return workspace()
+    except ValueError as exc:
+        raise HTTPException(503, str(exc)) from None
+
+
+@router.post('/devices/workspace/sample')
+def sample_devices():
+    try:
+        return workspace(record=True)
+    except ValueError as exc:
+        raise HTTPException(503, str(exc)) from None
+
+
+@router.post('/devices/workspace/cards')
+def save_monitoring_card(payload: MonitoringCard):
+    try:
+        save_panel(payload.entity_id, payload.title)
+        return {'saved': True}
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from None
+
+
+@router.post('/devices/workspace/cards/{panel_id}/remove')
+def remove_monitoring_card(panel_id: int):
+    remove_panel(panel_id)
+    return {'removed': True}
 
 
 @router.post('/devices/control')

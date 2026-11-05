@@ -9,7 +9,7 @@ let toastTimer;
 function toast(message){$('#toast').textContent=message;$('#toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').hidden=true,7000);}
 async function guard(fn){try{await fn();}catch(error){toast(error.message);}}
 async function api(path,body){let response;try{response=await fetch('/api'+path,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json','X-Oracle-Request':'local-dashboard'},body:body===undefined?undefined:JSON.stringify(body),signal:AbortSignal.timeout(path==='/chat'?180000:40000)});}catch{throw new Error('Oracle is not responding. Check that oracle.py is still running, then retry.');}const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:'Check the form values and try again.');return data;}
-function navigate(){const name=['home','chat','money','devices','connections'].includes(location.hash.slice(1))?location.hash.slice(1):'home';document.querySelectorAll('.page').forEach(p=>p.hidden=p.id!=='page-'+name);document.querySelectorAll('[data-nav]').forEach(a=>{a.classList.toggle('active',a.dataset.nav===name);if(a.dataset.nav===name)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});$('#breadcrumb').textContent='Workspace / '+({home:'Overview',chat:'Ask Oracle',money:'MyMoney',devices:'Devices',connections:'Connections'}[name]);if(name==='money')guard(loadMoney);if(name==='devices')guard(loadDevices);if(name==='connections')guard(loadConnections);}
+function navigate(){const name=['home','chat','money','devices','connections'].includes(location.hash.slice(1))?location.hash.slice(1):'home';document.querySelectorAll('.page').forEach(p=>p.hidden=p.id!=='page-'+name);document.querySelectorAll('[data-nav]').forEach(a=>{a.classList.toggle('active',a.dataset.nav===name);if(a.dataset.nav===name)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});$('#breadcrumb').textContent='Workspace / '+({home:'Overview',chat:'Ask Oracle',money:'MyMoney',devices:'Devices',connections:'Connections'}[name]);if(name==='home')loadDeviceOverview();if(name==='money')guard(loadMoney);if(name==='devices'){guard(loadDevices);loadMonitoringCards();}if(name==='connections')guard(loadConnections);}
 window.addEventListener('hashchange',navigate);
 $('#today').textContent=new Intl.DateTimeFormat('en-GB',{weekday:'long',day:'numeric',month:'long'}).format(new Date()).toUpperCase()+' / YOUR PERSONAL WORKSPACE';
 
@@ -25,7 +25,7 @@ $('#modal-form').addEventListener('submit',async e=>{e.preventDefault();$('#save
 function connectionForm(provider){const c=state.connections?.configuration||{};const fields={llm:[['OPENAI_API_KEY','API key','','password'],['OPENAI_MODEL','Model',c.model||'gpt-4o-mini'],['OPENAI_BASE_URL','API base URL (blank = OpenAI)',c.base_url||'']],google:[['GOOGLE_CLIENT_ID','Google client ID','','password'],['GOOGLE_CLIENT_SECRET','Google client secret','','password'],['GOOGLE_REDIRECT_URI','Authorized redirect URI',c.redirect_uri||'http://127.0.0.1:8000/api/google/callback']],iot:[['IOT_BACKEND','Backend',c.iot_backend||'demo','text',['demo','home_assistant']],['HA_URL','Home Assistant URL (leave blank to keep)'],['HA_TOKEN','Access token','','password'],['HA_ALLOWED_ENTITIES','Allowed entity IDs, separated by commas (blank keeps existing)']]};openForm('Configure '+({llm:'AI provider',google:'Google',iot:'devices'})[provider],fields[provider],async values=>{await api('/connections/configure',{provider,values});await loadConnections();},provider==='google'?'Register this exact redirect URI in Google Cloud → OAuth client → Authorized redirect URIs. Save, then click Reconnect Google.':'Credentials stay in your local .env file. Blank secrets keep existing values.');}
 
 function addMessage(role,content){$('.chat-empty')?.remove();const el=node('article',undefined,'message '+role);el.append(node('strong',role==='user'?'YOU':'ORACLE'),node('div',content));$('#chat-log').append(el);$('#chat-log').scrollTop=$('#chat-log').scrollHeight;return el;}
-async function sendChat(text){if(state.busy)return;state.busy=true;$('#send-chat').disabled=true;$('#chat-input').value='';addMessage('user',text);$('#chat-state').textContent='Oracle is thinking…';try{const result=await api('/chat',{message:text,history:state.history.slice(-20)});addMessage('assistant',result.reply);state.history.push({role:'user',content:text},{role:'assistant',content:result.reply});state.history=state.history.slice(-20);if(result.needs_confirmation)toast('Review Oracle’s proposed action before confirming in chat.');}catch(error){addMessage('assistant',error.message);$('#chat-input').value=text;}finally{state.busy=false;$('#send-chat').disabled=false;$('#chat-state').textContent='Your messages are sent to your AI provider.';loadConnections();}}
+async function sendChat(text){if(state.busy)return;state.busy=true;$('#send-chat').disabled=true;$('#chat-input').value='';addMessage('user',text);$('#chat-state').textContent='Oracle is thinking…';try{const shareDevices=$('#share-devices').checked;$('#share-devices').checked=false;const result=await api('/chat',{message:text,history:state.history.slice(-20),share_devices:shareDevices});addMessage('assistant',result.reply);if(!shareDevices)state.history.push({role:'user',content:text},{role:'assistant',content:result.reply});state.history=state.history.slice(-20);if(result.needs_confirmation)toast('Review Oracle’s proposed action before confirming in chat.');}catch(error){addMessage('assistant',error.message);$('#chat-input').value=text;}finally{state.busy=false;$('#send-chat').disabled=false;$('#chat-state').textContent='Your messages are sent to your AI provider.';loadConnections();}}
 $('#chat-form').addEventListener('submit',e=>{e.preventDefault();const text=$('#chat-input').value.trim();if(text)sendChat(text);});
 $('#chat-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('#chat-form').requestSubmit();}});
 $('#hero-form').addEventListener('submit',e=>{e.preventDefault();const text=$('#hero-input').value.trim();if(!text)return;location.hash='chat';$('#hero-input').value='';sendChat(text);});
@@ -34,8 +34,72 @@ $('#clear-chat').onclick=()=>{if(state.busy){toast('Wait for the current reply b
 const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
 $('#dictate').onclick=()=>{if(!SpeechRecognition){toast('Dictation is not supported in this browser. Use Chrome or Edge, or type your message.');return;}if(!confirm('Use browser speech recognition? Your browser may send audio to its speech provider. The transcript stays a draft until you send it.'))return;const recognition=new SpeechRecognition();recognition.lang='en-GB';recognition.onresult=e=>{$('#chat-input').value=e.results[0][0].transcript;};recognition.onerror=e=>toast('Microphone unavailable or speech not recognized ('+e.error+'). Check browser microphone permissions.');recognition.start();};
 
-async function loadDevices(){const target=$('#device-list');try{const result=await api('/devices');$('#device-mode').textContent=result.simulated?'Demo mode. These devices are simulated; no physical hardware is controlled.':'Connected to your allowlisted Home Assistant devices.';target.replaceChildren();if(!result.devices.length)target.append(node('p','No allowlisted devices. Add entity IDs in Connections.','empty'));for(const device of result.devices){const card=node('article',undefined,'essential');card.append(node('span',result.simulated?'SIMULATED DEVICE':'CONNECTED DEVICE','tiny'),node('h3',device.entity_id.replaceAll('_',' ')),node('div',device.state,'device-state'));if(/^(light|switch)\./.test(device.entity_id)){const controls=node('div',undefined,'device-actions');for(const [label,action] of [['Turn on','turn_on'],['Turn off','turn_off']])controls.append(button(label,async()=>{await api('/devices/control',{entity_id:device.entity_id,action});await loadDevices();}));card.append(controls);}target.append(card);}}catch(error){target.replaceChildren(node('p',error.message,'empty'),button('Open Connections',()=>location.hash='connections'));}}
-$('#refresh-devices').onclick=()=>guard(loadDevices);
+async function loadDevices(){const target=$('#device-list');try{const result=await api('/devices');$('#device-mode').textContent=result.simulated?'Demo mode. These devices are simulated; no physical hardware is controlled.':'Connected to your allowlisted Home Assistant devices.';state.devices=result.devices;target.replaceChildren();if(!result.devices.length)target.append(node('p','No allowlisted devices. Add entity IDs in Connections.','empty'));for(const device of result.devices){const card=node('article',undefined,'essential');card.append(node('span',result.simulated?'SIMULATED DEVICE':'CONNECTED DEVICE','tiny'),node('h3',device.entity_id.replaceAll('_',' ')),node('div',readingValue(device),'device-state'));if(/^(light|switch)\./.test(device.entity_id)){const controls=node('div',undefined,'device-actions');for(const [label,action] of [['Turn on','turn_on'],['Turn off','turn_off']])controls.append(button(label,async()=>{if(!result.simulated&&!confirm(label+' '+device.entity_id+'?'))return;await api('/devices/control',{entity_id:device.entity_id,action});await loadDevices();}));card.append(controls);}target.append(card);}}catch(error){target.replaceChildren(node('p',error.message,'empty'),button('Open Connections',()=>location.hash='connections'));}}
+function readingValue(reading) {
+    return [reading.state, reading.unit].filter(Boolean).join(' ');
+}
+function renderMonitoringCards(result) {
+    const target = $('#monitoring-cards');
+    target.replaceChildren();
+    if (!result.panels.length) target.append(node('p', 'No monitoring cards for this connection.'));
+    for (const panel of result.panels) {
+        const card = node('article', undefined, 'essential');
+        card.append(node('span', result.simulated ? 'SIMULATED' : 'HOME ASSISTANT', 'tiny'),
+            node('h3', panel.title), node('p', panel.device.entity_id),
+            node('div', readingValue(panel.device), 'device-state'));
+        const history = node('details');
+        history.append(node('summary', 'Recent saved readings'));
+        if (!panel.readings.length) history.append(node('p', 'Capture readings to start a history.'));
+        const list = node('ul');
+        for (const reading of panel.readings) {
+            list.append(node('li', new Date(reading.captured_at).toLocaleString() + ' · ' + readingValue(reading)));
+        }
+        history.append(list);
+        card.append(history, button('Ask about this device', () => {
+            location.hash = 'chat';
+            $('#chat-input').value = 'Summarise the latest state and saved readings for ' + panel.device.entity_id + '.';
+            $('#share-devices').checked = true;
+            $('#chat-input').focus();
+        }), button('Remove card', async () => {
+            if (!confirm('Remove this monitoring card and its saved readings?')) return;
+            await api('/devices/workspace/cards/' + panel.id + '/remove', {});
+            await loadMonitoringCards();
+        }));
+        target.append(card);
+    }
+}
+async function loadMonitoringCards() {
+    try { renderMonitoringCards(await api('/devices/workspace')); }
+    catch (error) { $('#monitoring-cards').replaceChildren(node('p', error.message)); }
+}
+async function loadDeviceOverview() {
+    const target = $('#overview-devices');
+    try {
+        const result = await api('/devices/workspace');
+        target.replaceChildren();
+        for (const panel of result.panels.slice(0, 4)) {
+            const link = node('a', undefined, 'essential');
+            link.href = '#devices';
+            link.append(node('span', result.simulated ? 'SIMULATED READING' : 'DEVICE READING', 'tiny'),
+                node('h3', panel.title), node('p', readingValue(panel.device)));
+            target.append(link);
+        }
+    } catch { target.replaceChildren(); }
+}
+$('#refresh-devices').onclick = () => guard(async () => { await loadDevices(); await loadMonitoringCards(); });
+$('#capture-device-sample').onclick = () => guard(async () => {
+    renderMonitoringCards(await api('/devices/workspace/sample', {}));
+    toast('Readings captured for available monitoring cards.');
+});
+$('#add-device-card').onclick = () => guard(async () => {
+    const result = await api('/devices');
+    const ids = result.devices.map(device => device.entity_id);
+    if (!ids.length) throw new Error('Add devices to the allowlist in Connections first.');
+    openForm('Save a monitoring card', [['entity_id','Device',ids[0],'text',ids], ['title','Card title']], async values => {
+        await api('/devices/workspace/cards', values);
+        await loadMonitoringCards();
+    }, 'Select an existing entity to create its card or update its title.');
+});
 
 async function loadMoney(){state.money=await api('/money');renderMoney();}
 function renderMoney(){const s=state.money.summary;$('#money-notices').replaceChildren(...s.notices.map(n=>node('div',n)));const stats=$('#money-stats');stats.replaceChildren();for(const [label,value] of [['Bank balance',s.balance],['Available after reserves',s.spendable],['Daily allowance',s.daily],['Next 7 days',s.weekly]]){const card=node('div',undefined,'stat');card.append(node('span',label),node('strong',currency(value)));stats.append(card);}const segments=[['Bills',s.commitments,'#cb9b69'],['Savings',s.reserved,'#989ac2'],['Safety buffer',s.buffer,'#759ab0'],['Spendable',s.spendable,'#709379']];const total=segments.reduce((sum,x)=>sum+x[1],0)||1;$('#budget-bar').replaceChildren();$('#budget-legend').replaceChildren();for(const [name,value,color] of segments){const bar=node('div');bar.style.width=(value/total*100)+'%';bar.style.background=color;bar.title=name+': '+currency(value);$('#budget-bar').append(bar);const legend=node('span');const swatch=node('i',undefined,'swatch');swatch.style.background=color;legend.append(swatch,node('span',name+' '+currency(value)));$('#budget-legend').append(legend);}renderMoneyTable();}

@@ -9,6 +9,7 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=8000)
     history: list[ChatMessage] = Field(default_factory=list, max_length=20)
+    share_devices: bool = False
 
 
 class ChatResponse(BaseModel):

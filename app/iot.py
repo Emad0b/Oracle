@@ -41,7 +41,8 @@ def list_devices():
         with _lock:
             devices = [{"entity_id": k, "state": v} for k, v in _demo.items()]
     else:
-        devices = [{"entity_id": d["entity_id"], "state": d["state"]}
+        devices = [{"entity_id": d["entity_id"], "state": str(d["state"])[:255],
+                    "unit": str(d.get("attributes", {}).get("unit_of_measurement") or "")[:24]}
                    for d in _request("GET", "states") if d["entity_id"] in _allowed()]
     return {"backend": mode, "simulated": mode == "demo", "devices": devices}
 
