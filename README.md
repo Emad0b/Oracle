@@ -1,5 +1,7 @@
 # Oracle
 
+Oracle is a personal dashboard that runs on your computer. Use it to ask an AI assistant for help, track a budget, or monitor and control approved smart devices through Home Assistant.
+
 **Operational Resource for Analysis, Communication, and Logical Execution**
 
 A Python personal assistant with a local web dashboard: API-backed reasoning,
